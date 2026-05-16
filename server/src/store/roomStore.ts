@@ -1,0 +1,1 @@
+export const roomCode: Record<string, string> = {};
