@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import Editor from "@monaco-editor/react";
+import type { User } from "./user";
+import { JoinScreen } from "./JoinScreen";
+import { Sidebar } from "./Sidebar";
+import { Workspace } from "./Workspace";
 
 const socket = io("http://localhost:3000");
-
-interface User {
-  socketId: string;
-  username: string;
-}
 
 function App() {
   const [code, setCode] = useState("");
@@ -121,128 +119,39 @@ function App() {
     socket.emit("execute-code", { code, language });
   };
 
-  if (!isJoined) {
-    if (mode === "initial") {
-      return (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", flexDirection: "column", gap: "20px" }}>
-          <h2>CodeSync</h2>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button
-              onClick={() => { setRoomId(generateRoomId()); setMode("create"); setError(""); setPasscode(""); }}
-              style={{ padding: "10px 20px", fontSize: "16px", cursor: "pointer" }}
-            >
-              Create Room
-            </button>
-            <button
-              onClick={() => { setRoomId(""); setMode("join"); setError(""); setPasscode(""); }}
-              style={{ padding: "10px 20px", fontSize: "16px", cursor: "pointer" }}
-            >
-              Join Room
-            </button>
-          </div>
-        </div>
-      );
-    }
+  const handleCodeChange = (updatedCode: string) => {
+    socket.emit("code-change", {
+      roomId,
+      code: updatedCode,
+    });
+  };
 
+  if (!isJoined) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", flexDirection: "column" }}>
-        <form onSubmit={mode === "create" ? handleCreate : handleJoin} style={{ display: "flex", flexDirection: "column", gap: "10px", width: "300px" }}>
-          <h2>{mode === "create" ? "Create CodeSync Room" : "Join CodeSync Room"}</h2>
-          {error && <p style={{ color: "red", margin: 0 }}>{error}</p>}
-          <input
-            type="text"
-            placeholder="Room ID"
-            value={roomId}
-            onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-            style={{ padding: "10px", fontSize: "16px" }}
-            required
-            readOnly={mode === "create"}
-          />
-          <input
-            type="text"
-            placeholder="4-digit Passcode"
-            value={passcode}
-            onChange={(e) => setPasscode(e.target.value)}
-            style={{ padding: "10px", fontSize: "16px" }}
-            maxLength={4}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Enter Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            style={{ padding: "10px", fontSize: "16px" }}
-            required
-          />
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button type="submit" style={{ flex: 1, padding: "10px", fontSize: "16px", cursor: "pointer" }}>
-              {mode === "create" ? "Create" : "Join"}
-            </button>
-            <button type="button" onClick={() => { setMode("initial"); setError(""); }} style={{ flex: 1, padding: "10px", fontSize: "16px", cursor: "pointer" }}>
-              Back
-            </button>
-          </div>
-        </form>
-      </div>
+      <JoinScreen
+        mode={mode} setMode={setMode}
+        roomId={roomId} setRoomId={setRoomId}
+        username={username} setUsername={setUsername}
+        passcode={passcode} setPasscode={setPasscode}
+        error={error} setError={setError}
+        handleCreate={handleCreate} handleJoin={handleJoin}
+        generateRoomId={generateRoomId}
+      />
     );
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh" }}>
-      <div style={{ width: "250px", padding: "20px", borderRight: "1px solid #ccc", overflowY: "auto", display: "flex", flexDirection: "column" }}>
-        <div style={{ marginBottom: "20px" }}>
-          <h3 style={{ marginTop: 0 }}>Room Details</h3>
-          <p style={{ margin: "5px 0" }}><strong>ID:</strong> {roomId}</p>
-          <p style={{ margin: "5px 0" }}><strong>Passcode:</strong> {passcode}</p>
-        </div>
-        <div>
-          <h3 style={{ marginTop: 0 }}>Connected Users</h3>
-          <ul style={{ listStyleType: "none", padding: 0, margin: 0 }}>
-            {users.map((user) => (
-              <li key={user.socketId} style={{ padding: "5px 0", fontSize: "16px" }}>
-                🟢 {user.username} {user.socketId === socket.id && "(You)"}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1 style={{ margin: 0 }}>CodeSync</h1>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <select value={language} onChange={handleLanguageChange} style={{ padding: "5px", fontSize: "16px" }}>
-              <option value="cpp">C++</option>
-              <option value="python">Python</option>
-            </select>
-            <button onClick={handleExecute} disabled={isExecuting} style={{ padding: "5px 15px", fontSize: "16px", cursor: isExecuting ? "not-allowed" : "pointer" }}>
-              {isExecuting ? "Running..." : "Run Code"}
-            </button>
-          </div>
-        </div>
-        <div style={{ flex: 1, display: "flex" }}>
-          <div style={{ flex: 0.7 }}>
-            <Editor
-              height="100%"
-              language={language}
-              theme="vs-dark"
-              value={code}
-              onChange={(value) => {
-                const updatedCode = value || "";
-                setCode(updatedCode);
-                socket.emit("code-change", {
-                  roomId,
-                  code: updatedCode,
-                });
-              }}
-            />
-          </div>
-          <div style={{ flex: 0.3, borderLeft: "1px solid #ccc", padding: "10px", backgroundColor: "#1e1e1e", color: "#fff", overflowY: "auto", fontFamily: "monospace" }}>
-            <h3 style={{ marginTop: 0 }}>Output</h3>
-            <pre style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}>{output}</pre>
-          </div>
-        </div>
-      </div>
+    <div style={{ display: "flex", height: "100vh", width: "100vw", position: "absolute", top: 0, left: 0 }}>
+      <Sidebar roomId={roomId} passcode={passcode} users={users} socketId={socket.id} />
+      <Workspace
+        language={language}
+        handleLanguageChange={handleLanguageChange}
+        handleExecute={handleExecute}
+        isExecuting={isExecuting}
+        code={code} setCode={setCode}
+        onCodeChange={handleCodeChange}
+        output={output}
+      />
     </div>
   );
 }
