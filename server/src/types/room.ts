@@ -8,4 +8,5 @@ export interface Room {
   passcode: string;
   users: User[];
   code: string;
+  language: string;
 }

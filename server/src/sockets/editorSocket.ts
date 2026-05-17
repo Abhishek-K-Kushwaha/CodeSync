@@ -1,6 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { rooms } from "../store/roomStore";
 import { User } from "../types/room";
+import { executeCode } from "../utils/executeCode";
 
 const socketRoomMap: Record<string, string> = {};
 
@@ -25,6 +26,7 @@ export const registerEditorSocketHandlers = (
     console.log(`${username} (${socket.id}) joined ${roomId}`);
 
     socket.emit("sync-code", rooms[roomId].code || "");
+    socket.emit("sync-language", rooms[roomId].language || "cpp");
     socket.emit("room-joined");
 
     // Broadcast the updated user list to everyone in the room
@@ -41,6 +43,7 @@ export const registerEditorSocketHandlers = (
       passcode,
       users: [],
       code: "",
+      language: "cpp",
     };
     joinRoom(roomId, username);
   });
@@ -61,6 +64,23 @@ export const registerEditorSocketHandlers = (
     if (rooms[roomId]) {
       rooms[roomId].code = code;
       socket.to(roomId).emit("code-update", code);
+    }
+  });
+
+  socket.on("language-change", ({ roomId, language }) => {
+    if (rooms[roomId]) {
+      rooms[roomId].language = language;
+      socket.to(roomId).emit("language-update", language);
+    }
+  });
+
+  socket.on("execute-code", async ({ code, language }) => {
+    try {
+      socket.emit("execution-started");
+      const output = await executeCode(language, code);
+      socket.emit("execution-output", output);
+    } catch (err: any) {
+      socket.emit("execution-output", err.message || "Execution failed");
     }
   });
 
