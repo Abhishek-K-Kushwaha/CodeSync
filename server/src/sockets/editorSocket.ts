@@ -2,6 +2,7 @@ import { Server, Socket } from "socket.io";
 import { rooms } from "../store/roomStore";
 import { User } from "../types/room";
 import { executeCode } from "../utils/executeCode";
+import prisma from "../lib/prisma";
 
 const socketRoomMap: Record<string, string> = {};
 
@@ -33,25 +34,69 @@ export const registerEditorSocketHandlers = (
     io.to(roomId).emit("users-update", getConnectedUsers(roomId));
   };
 
-  socket.on("create-room", ({ roomId, passcode, username }: { roomId: string; passcode: string; username: string }) => {
+  socket.on("create-room", async ({ roomId, passcode, username }: { roomId: string; passcode: string; username: string }) => {
     if (rooms[roomId]) {
       socket.emit("room-error", "Room already exists.");
       return;
     }
-    rooms[roomId] = {
-      roomId,
-      passcode,
-      users: [],
-      code: "",
-      language: "cpp",
-    };
-    joinRoom(roomId, username);
+
+    try {
+      const existingRoom = await prisma.room.findUnique({
+        where: { roomCode: roomId },
+      });
+
+      if (existingRoom) {
+        socket.emit("room-error", "Room already exists.");
+        return;
+      }
+
+      await prisma.room.create({
+        data: {
+          roomCode: roomId,
+          passcode,
+          code: "",
+          language: "cpp",
+        },
+      });
+
+      rooms[roomId] = {
+        roomId,
+        passcode,
+        users: [],
+        code: "",
+        language: "cpp",
+      };
+      joinRoom(roomId, username);
+    } catch (err) {
+      console.error("Failed to create room:", err);
+      socket.emit("room-error", "Failed to create room.");
+    }
   });
 
-  socket.on("join-room", ({ roomId, passcode, username }: { roomId: string; passcode: string; username: string }) => {
+  socket.on("join-room", async ({ roomId, passcode, username }: { roomId: string; passcode: string; username: string }) => {
     if (!rooms[roomId]) {
-      socket.emit("room-error", "Room does not exist.");
-      return;
+      try {
+        const dbRoom = await prisma.room.findUnique({
+          where: { roomCode: roomId },
+        });
+
+        if (!dbRoom) {
+          socket.emit("room-error", "Room does not exist.");
+          return;
+        }
+
+        rooms[roomId] = {
+          roomId: dbRoom.roomCode,
+          passcode: dbRoom.passcode,
+          users: [],
+          code: dbRoom.code,
+          language: dbRoom.language,
+        };
+      } catch (err) {
+        console.error("Failed to load room from DB:", err);
+        socket.emit("room-error", "Failed to join room.");
+        return;
+      }
     }
     if (rooms[roomId].passcode !== passcode) {
       socket.emit("room-error", "Invalid passcode.");
@@ -60,17 +105,35 @@ export const registerEditorSocketHandlers = (
     joinRoom(roomId, username);
   });
 
-  socket.on("code-change", ({ roomId, code }) => {
+  socket.on("code-change", async ({ roomId, code }) => {
     if (rooms[roomId]) {
       rooms[roomId].code = code;
       socket.to(roomId).emit("code-update", code);
+
+      try {
+        await prisma.room.update({
+          where: { roomCode: roomId },
+          data: { code },
+        });
+      } catch (err) {
+        console.error("Failed to persist code change:", err);
+      }
     }
   });
 
-  socket.on("language-change", ({ roomId, language }) => {
+  socket.on("language-change", async ({ roomId, language }) => {
     if (rooms[roomId]) {
       rooms[roomId].language = language;
       socket.to(roomId).emit("language-update", language);
+
+      try {
+        await prisma.room.update({
+          where: { roomCode: roomId },
+          data: { language },
+        });
+      } catch (err) {
+        console.error("Failed to persist language change:", err);
+      }
     }
   });
 
