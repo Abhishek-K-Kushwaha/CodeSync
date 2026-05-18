@@ -2,7 +2,7 @@ import { Server, Socket } from "socket.io";
 import { rooms } from "../store/roomStore";
 import { User } from "../types/room";
 import { executeCode } from "../utils/executeCode";
-import prisma from "../lib/prisma";
+import * as roomService from "../services/roomService";
 
 const socketRoomMap: Record<string, string> = {};
 
@@ -41,23 +41,14 @@ export const registerEditorSocketHandlers = (
     }
 
     try {
-      const existingRoom = await prisma.room.findUnique({
-        where: { roomCode: roomId },
-      });
+      const existingRoom = await roomService.getRoom(roomId);
 
       if (existingRoom) {
         socket.emit("room-error", "Room already exists.");
         return;
       }
 
-      await prisma.room.create({
-        data: {
-          roomCode: roomId,
-          passcode,
-          code: "",
-          language: "cpp",
-        },
-      });
+      await roomService.createRoom(roomId, passcode);
 
       rooms[roomId] = {
         roomId,
@@ -76,9 +67,7 @@ export const registerEditorSocketHandlers = (
   socket.on("join-room", async ({ roomId, passcode, username }: { roomId: string; passcode: string; username: string }) => {
     if (!rooms[roomId]) {
       try {
-        const dbRoom = await prisma.room.findUnique({
-          where: { roomCode: roomId },
-        });
+        const dbRoom = await roomService.getRoom(roomId);
 
         if (!dbRoom) {
           socket.emit("room-error", "Room does not exist.");
@@ -111,10 +100,7 @@ export const registerEditorSocketHandlers = (
       socket.to(roomId).emit("code-update", code);
 
       try {
-        await prisma.room.update({
-          where: { roomCode: roomId },
-          data: { code },
-        });
+        await roomService.updateCode(roomId, code);
       } catch (err) {
         console.error("Failed to persist code change:", err);
       }
@@ -127,10 +113,7 @@ export const registerEditorSocketHandlers = (
       socket.to(roomId).emit("language-update", language);
 
       try {
-        await prisma.room.update({
-          where: { roomCode: roomId },
-          data: { language },
-        });
+        await roomService.updateLanguage(roomId, language);
       } catch (err) {
         console.error("Failed to persist language change:", err);
       }
