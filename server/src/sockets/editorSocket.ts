@@ -1,7 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { rooms } from "../store/roomStore";
 import { User } from "../types/room";
-import { executeCode } from "../utils/executeCode";
+import { executeCode } from "../utils/execution/executeCode";
 import * as roomService from "../services/roomService";
 
 const socketRoomMap: Record<string, string> = {};
