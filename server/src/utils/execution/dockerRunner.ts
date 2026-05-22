@@ -7,7 +7,8 @@ export const runInDocker = async (
   code: string,
   fileName: string,
   image: string,
-  args: string[]
+  args: string[],
+  input: string = ""
 ): Promise<string> => {
   const fileId = Math.random().toString(36).substring(7);
   const tempDir = os.tmpdir();
@@ -21,6 +22,7 @@ export const runInDocker = async (
     const containerName = `exec_${fileId}`;
     const process = spawn("docker", [
       "run",
+      "-i",
       "--name", containerName,
       "--rm",
       "--network", "none",
@@ -31,6 +33,11 @@ export const runInDocker = async (
       image,
       ...args
     ]);
+
+    if (input) {
+      process.stdin.write(input);
+    }
+    process.stdin.end();
 
     let output = "";
     let error = "";
@@ -47,7 +54,8 @@ export const runInDocker = async (
         isResolved = true;
         spawn("docker", ["rm", "-f", containerName]);
         cleanup();
-        resolve((error || output) + "\nExecution timed out.");
+        let finalOutput = output && error ? `${output}\n${error}` : error || output;
+        resolve((finalOutput ? finalOutput.trim() + "\n" : "") + "\nTIME LIMIT EXCEEDED");
       }
     }, 10000);
 
@@ -67,12 +75,18 @@ export const runInDocker = async (
       error += data.toString();
     });
 
-    process.on("close", async () => {
+    process.on("close", async (code) => {
       if (isResolved) return;
       isResolved = true;
       clearTimeout(timer);
       await cleanup();
-      resolve(error || output);
+      
+      let finalOutput = output && error ? `${output}\n${error}` : error || output;
+      if (code === 137) {
+        finalOutput = (finalOutput ? finalOutput.trim() + "\n" : "") + "MEMORY LIMIT EXCEEDED";
+      }
+
+      resolve(finalOutput);
     });
   });
 };

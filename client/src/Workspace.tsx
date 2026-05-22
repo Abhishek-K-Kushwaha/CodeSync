@@ -10,10 +10,12 @@ interface WorkspaceProps {
   setCode: (code: string) => void;
   onCodeChange: (code: string) => void;
   output: string;
+  input: string;
+  setInput: (input: string) => void;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = ({
-  language, handleLanguageChange, handleExecute, isExecuting, code, setCode, onCodeChange, output
+  language, handleLanguageChange, handleExecute, isExecuting, code, setCode, onCodeChange, output, input, setInput
 }) => {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -43,9 +45,20 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             }}
           />
         </div>
-        <div style={{ flex: 0.3, borderLeft: "1px solid #ccc", padding: "10px", backgroundColor: "#1e1e1e", color: "#fff", overflowY: "auto", fontFamily: "monospace", textAlign: "left" }}>
-          <h3 style={{ marginTop: 0 }}>Output</h3>
-          <pre style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}>{output}</pre>
+        <div style={{ flex: 0.3, borderLeft: "1px solid #ccc", display: "flex", flexDirection: "column" }}>
+          <div style={{ flex: 0.5, padding: "10px", backgroundColor: "#1e1e1e", color: "#fff", borderBottom: "1px solid #ccc", display: "flex", flexDirection: "column" }}>
+            <h3 style={{ marginTop: 0, marginBottom: "10px" }}>Input</h3>
+            <textarea
+              style={{ flex: 1, backgroundColor: "#2d2d2d", color: "#fff", border: "none", padding: "10px", fontFamily: "monospace", resize: "none" }}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Enter your custom input here..."
+            />
+          </div>
+          <div style={{ flex: 0.5, padding: "10px", backgroundColor: "#1e1e1e", color: "#fff", overflowY: "auto", fontFamily: "monospace", textAlign: "left" }}>
+            <h3 style={{ marginTop: 0 }}>Output</h3>
+            <pre style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}>{output}</pre>
+          </div>
         </div>
       </div>
     </div>

@@ -120,10 +120,10 @@ export const registerEditorSocketHandlers = (
     }
   });
 
-  socket.on("execute-code", async ({ code, language }) => {
+  socket.on("execute-code", async ({ code, language, input }) => {
     try {
       socket.emit("execution-started");
-      const output = await executeCode(language, code);
+      const output = await executeCode(language, code, input);
       socket.emit("execution-output", output);
     } catch (err: any) {
       socket.emit("execution-output", err.message || "Execution failed");

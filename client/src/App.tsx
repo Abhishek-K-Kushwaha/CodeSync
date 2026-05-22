@@ -14,6 +14,7 @@ function App() {
   const [passcode, setPasscode] = useState("");
   const [language, setLanguage] = useState("cpp");
   const [output, setOutput] = useState("");
+  const [input, setInput] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
   const [isJoined, setIsJoined] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -116,7 +117,7 @@ function App() {
   };
 
   const handleExecute = () => {
-    socket.emit("execute-code", { code, language });
+    socket.emit("execute-code", { code, language, input });
   };
 
   const handleCodeChange = (updatedCode: string) => {
@@ -151,6 +152,8 @@ function App() {
         code={code} setCode={setCode}
         onCodeChange={handleCodeChange}
         output={output}
+        input={input}
+        setInput={setInput}
       />
     </div>
   );
