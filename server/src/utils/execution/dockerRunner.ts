@@ -1,7 +1,36 @@
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import fs from "fs/promises";
+import fsSync from "fs";
 import path from "path";
 import os from "os";
+
+interface ActiveResource {
+  containerName: string;
+  workspaceDir: string;
+}
+
+const activeResources = new Set<ActiveResource>();
+
+// Synchronous cleanup to guarantee execution during process exit
+const cleanupAllSync = () => {
+  for (const res of activeResources) {
+    try {
+      spawnSync("docker", ["rm", "-f", res.containerName]);
+    } catch (e) {}
+    try {
+      fsSync.rmSync(res.workspaceDir, { recursive: true, force: true });
+    } catch (e) {}
+  }
+};
+
+process.on("exit", cleanupAllSync);
+process.on("SIGINT", () => { cleanupAllSync(); process.exit(1); });
+process.on("SIGTERM", () => { cleanupAllSync(); process.exit(1); });
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  cleanupAllSync();
+  process.exit(1);
+});
 
 export interface DockerExecutionResult {
   output: string;
@@ -30,6 +59,9 @@ export const runInDocker = async (
     const spawnTime = Date.now();
     let firstOutputTime = 0;
 
+    const resource: ActiveResource = { containerName, workspaceDir };
+    activeResources.add(resource);
+
     const process = spawn("docker", [
       "run",
       "-i",
@@ -57,6 +89,7 @@ export const runInDocker = async (
       try {
         await fs.rm(workspaceDir, { recursive: true, force: true });
       } catch (e) {}
+      activeResources.delete(resource);
     };
 
     const getExecutionTime = async (): Promise<number | null> => {
@@ -101,7 +134,7 @@ export const runInDocker = async (
         spawn("docker", ["rm", "-f", containerName]);
         const execTime = await getExecutionTime();
         const memoryUsed = await getMemoryUsed();
-        cleanup();
+        await cleanup();
         let finalOutput = output && error ? `${output}\n${error}` : error || output;
         const totalTime = Date.now() - spawnTime;
         resolve({
@@ -113,11 +146,11 @@ export const runInDocker = async (
       }
     }, 10000);
 
-    process.on("error", (err) => {
+    process.on("error", async (err) => {
       if (isResolved) return;
       isResolved = true;
       clearTimeout(timer);
-      cleanup();
+      await cleanup();
       resolve({
         output: `Execution error: ${err.message}`,
         startupTime: Date.now() - spawnTime,
