@@ -2,6 +2,7 @@ import { Server, Socket } from "socket.io";
 import { rooms } from "../store/roomStore";
 import { User } from "../types/room";
 import { executeCode } from "../utils/execution/executeCode";
+import { enqueueExecution } from "../utils/execution/executionQueue";
 import * as roomService from "../services/roomService";
 
 const socketRoomMap: Record<string, string> = {};
@@ -123,8 +124,17 @@ export const registerEditorSocketHandlers = (
   socket.on("execute-code", async ({ code, language, input }) => {
     try {
       socket.emit("execution-started");
-      const output = await executeCode(language, code, input);
-      socket.emit("execution-output", output);
+      const result = await enqueueExecution({
+        roomId: socketRoomMap[socket.id],
+        socketId: socket.id,
+        language,
+        code,
+        input: input || ""
+      });
+
+      const metricsStr = `\n\n--- Execution Metrics ---\nQueue Wait Time: ${result.metrics.queueWaitTime}ms\nContainer Startup: ${result.metrics.containerStartupTime}ms\nExecution Time: ${result.metrics.executionTime}ms\nTotal Latency: ${result.metrics.totalLatency}ms\nMemory Used: ${result.metrics.memoryUsed}`;
+      
+      socket.emit("execution-output", result.output + metricsStr);
     } catch (err: any) {
       socket.emit("execution-output", err.message || "Execution failed");
     }

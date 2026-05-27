@@ -47,7 +47,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         </div>
         <div style={{ flex: 0.3, borderLeft: "1px solid #ccc", display: "flex", flexDirection: "column" }}>
           <div style={{ flex: 0.5, padding: "10px", backgroundColor: "#1e1e1e", color: "#fff", borderBottom: "1px solid #ccc", display: "flex", flexDirection: "column" }}>
-            <h3 style={{ marginTop: 0, marginBottom: "10px" }}>Input</h3>
+            <h3 style={{ marginTop: 0, marginBottom: "10px", textAlign: "center" }}>Input</h3>
             <textarea
               style={{ flex: 1, backgroundColor: "#2d2d2d", color: "#fff", border: "none", padding: "10px", fontFamily: "monospace", resize: "none" }}
               value={input}
@@ -55,9 +55,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               placeholder="Enter your custom input here..."
             />
           </div>
-          <div style={{ flex: 0.5, padding: "10px", backgroundColor: "#1e1e1e", color: "#fff", overflowY: "auto", fontFamily: "monospace", textAlign: "left" }}>
-            <h3 style={{ marginTop: 0 }}>Output</h3>
-            <pre style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}>{output}</pre>
+          <div style={{ flex: 0.5, padding: "10px", backgroundColor: "#1e1e1e", color: "#fff", display: "flex", flexDirection: "column" }}>
+            <h3 style={{ marginTop: 0, marginBottom: "10px", textAlign: "center" }}>Output</h3>
+            <div style={{ flex: 1, backgroundColor: "#2d2d2d", padding: "10px", overflowY: "auto", fontFamily: "monospace", textAlign: "left" }}>
+              <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordWrap: "break-word" }}>{output}</pre>
+            </div>
           </div>
         </div>
       </div>
