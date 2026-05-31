@@ -7,6 +7,33 @@ import * as roomService from "../services/roomService";
 
 const socketRoomMap: Record<string, string> = {};
 
+const roomWriteTimers: Record<string, NodeJS.Timeout> = {};
+
+const persistRoomCode = async (roomId: string) => {
+  if (roomWriteTimers[roomId]) {
+    clearTimeout(roomWriteTimers[roomId]);
+    delete roomWriteTimers[roomId];
+  }
+  const room = rooms[roomId];
+  if (room) {
+    const codeToSave = room.code;
+    try {
+      await roomService.updateCode(roomId, codeToSave);
+    } catch (err) {
+      console.error("Failed to persist code change:", err);
+    }
+  }
+};
+
+const scheduleRoomWrite = (roomId: string) => {
+  if (roomWriteTimers[roomId]) {
+    clearTimeout(roomWriteTimers[roomId]);
+  }
+  roomWriteTimers[roomId] = setTimeout(() => {
+    persistRoomCode(roomId);
+  }, 5000);
+};
+
 const getConnectedUsers = (roomId: string) => {
   return rooms[roomId]?.users || [];
 };
@@ -95,16 +122,11 @@ export const registerEditorSocketHandlers = (
     joinRoom(roomId, username);
   });
 
-  socket.on("code-change", async ({ roomId, code }) => {
+  socket.on("code-change", ({ roomId, code }) => {
     if (rooms[roomId]) {
       rooms[roomId].code = code;
       socket.to(roomId).emit("code-update", code);
-
-      try {
-        await roomService.updateCode(roomId, code);
-      } catch (err) {
-        console.error("Failed to persist code change:", err);
-      }
+      scheduleRoomWrite(roomId);
     }
   });
 
@@ -149,6 +171,8 @@ export const registerEditorSocketHandlers = (
       delete socketRoomMap[socket.id];
       io.to(roomId).emit("users-update", getConnectedUsers(roomId));
       
+      persistRoomCode(roomId);
+
       // Cleanup room if empty
       if (rooms[roomId].users.length === 0) {
         delete rooms[roomId];
