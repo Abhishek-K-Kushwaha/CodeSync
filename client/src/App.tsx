@@ -5,7 +5,7 @@ import { JoinScreen } from "./JoinScreen";
 import { Sidebar } from "./Sidebar";
 import { Workspace } from "./Workspace";
 
-const socket = io("http://localhost:3000");
+const socket = io();
 
 function App() {
   const [code, setCode] = useState("");
