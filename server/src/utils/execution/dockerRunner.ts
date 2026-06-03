@@ -47,13 +47,15 @@ export const runInDocker = async (
   input: string = ""
 ): Promise<DockerExecutionResult> => {
   const fileId = Math.random().toString(36).substring(7);
-  const tempDir = os.tmpdir();
-  const workspaceDir = path.join(tempDir, `workspace_${fileId}`);
+  const workspaceDir = path.join(
+    "/opt/codesync-workspaces",
+    `workspace_${fileId}`
+  );
   await fs.mkdir(workspaceDir, { recursive: true });
 
   const filePath = path.join(workspaceDir, fileName);
   await fs.writeFile(filePath, code);
-
+  const stat = await fs.stat(filePath);
   return new Promise((resolve) => {
     const containerName = `exec_${fileId}`;
     const spawnTime = Date.now();
@@ -61,7 +63,16 @@ export const runInDocker = async (
 
     const resource: ActiveResource = { containerName, workspaceDir };
     activeResources.add(resource);
+    console.log("workspaceDir =", workspaceDir);
+    console.log("filePath =", filePath);
 
+    console.log("file exists, size =", stat.size);
+    console.log([
+	    "docker",
+	    "run",
+	    ...
+	    "-v", `${workspaceDir}:/workspace`,
+    ]);
     const process = spawn("docker", [
       "run",
       "-i",
